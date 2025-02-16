@@ -19,7 +19,7 @@ user_route.use(bodyParser.urlencoded({extended:true}));
 user_route.set('view engine','ejs');
 user_route.set('views','./views');
 user_route.use(express.static('public'));
-const storage = multer.diskStorage({
+const storage = multer.diskStorage({  // Multer config for storing user's image
     destination: function(req, file, cb){
         cb(null,path.join(__dirname,'../public/image'));
     },
@@ -40,6 +40,9 @@ user_route.get('/dashboard',auth.isLogin,userController.loadDashboard);
 user_route.post('/save-chat',userController.saveChat);
 user_route.post('/delete-chat',userController.deleteChat);
 user_route.post('/update-chat',userController.updateChat);
+user_route.get('/groups', auth.isLogin, userController.loadGroups);
+user_route.post('/groups', upload.single('image'), userController.createGroup);
+
 user_route.get("*",function(req,res) {
     res.redirect('/');
 })
