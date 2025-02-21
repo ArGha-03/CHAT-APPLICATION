@@ -1,8 +1,10 @@
 const User = require("../models/userModel");
 const Chat = require("../models/chatModel");
 const Group = require("../models/groupModel");
-
+const Member = require("../models/memberModel");
 const bcrypt = require("bcrypt");
+const mongoose = require("mongoose");
+
 const registerLoad = async (req, res) => {
   try {
     res.render("register");
@@ -117,7 +119,7 @@ const loadGroups = async (req, res) => {
   try {
     const groups = await Group.find({ creator_id: req.session.user._id });
     res.render("group", { groups: groups });
-    res.render("group");
+    // res.render("group");
   } catch (error) {
     console.log(error.message);
   }
@@ -137,6 +139,69 @@ const createGroup = async (req, res) => {
     console.log(error.message);
   }
 };
+const getMembers = async (req, res) => {
+  try {
+    var users = await User.aggregate([
+      {
+        $lookup: {
+          from: "members",
+          localField: "_id",
+          foreignField: "user_id",
+          pipeline: [
+            {
+              $match: {
+                $expr:{
+                  $and:[
+                    {
+                      $eq:["$group_id", new mongoose.Types.ObjectId(req.body.group_id)]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          as: "member",
+        },
+      },
+      {
+        $match: {
+          "_id": {
+            $nin: [new mongoose.Types.ObjectId(req.session.user._id)]
+          }
+        }
+      }
+    ]);
+    res.status(200).send({ success: true, data: users });
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
+  }
+};
+const addMembers = async (req, res) => {
+  try {
+    if(!req.body.members){
+      res.status(200).send({ success: false, msg: "Please select any one members!" });
+    }
+    else if(req.body.members.length > parseInt(req.body.limit)){
+      res.status(200).send({ success: false, msg: 'You can not select more than ' + req.body.limit + ' members!' });
+    }
+    else{
+      await Member.deleteMany({ group_id: req.body.group_id });
+      var data = [];
+      const members = req.body.members;
+      for(let i = 0; i < members.length; i++) {
+        data.push({
+          group_id: req.body.group_id,
+          user_id: members[i]
+        });
+      }
+      await Member.insertMany(data);
+
+      res.status(200).send({ success: true, msg: "Members added successfully!" });
+    }
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
+  }
+};
 
 module.exports = {
   registerLoad,
@@ -150,4 +215,6 @@ module.exports = {
   updateChat,
   loadGroups,
   createGroup,
+  getMembers,
+  addMembers
 };

@@ -8573,3 +8573,12 @@ a[data-toggle="collapse"] {
 #context-menu li:hover {
   background-color: #f0f0f0;
 }
+
+.addMemberTable{
+  overflow-y: scroll;
+  height: 100px;
+  width: 100%;
+}
+#add-member-error{
+  color: red;
+}
