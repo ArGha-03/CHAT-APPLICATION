@@ -9,7 +9,7 @@ const registerLoad = async (req, res) => {
   try {
     res.render("register");
   } catch (error) {
-    console.log(err.message);
+    console.log(error.message);
   }
 };
 const register = async (req, res) => {
@@ -202,7 +202,42 @@ const addMembers = async (req, res) => {
     res.status(400).send({ success: false, msg: error.message });
   }
 };
-
+const updateChatGroup = async (req, res) => {
+  try {
+    if(parseInt(req.body.limit) < parseInt(req.body.last_limit)){
+      await Member.deleteMany({ group_id: req.body.id });
+    }
+    var updateObj;
+    if(req.file != undefined){
+      updateObj = {
+        name: req.body.name,
+        image: "image/" + req.file.filename,
+        limit: req.body.limit
+      }
+    }
+    else{
+      updateObj = {
+        name: req.body.name,
+        limit: req.body.limit
+      }
+    }
+    await Group.findByIdAndUpdate({_id: req.body.id}, {
+      $set: updateObj
+    });
+    res.status(200).send({ success: true, msg: "Chat Group updated successfully!" });
+  } catch (error) {
+    res.status(400).send({ success: false, msg: error.message });
+  }
+}
+const deleteChatGroup = async (req,res)=>{
+  try {
+      await Group.deleteOne({_id:req.body.id});
+      await Member.deleteMany({group_id:req.body.id})
+      res.status(200).send({success: true,msg:'Chat group deleted successfully'});
+  } catch (error) {
+      res.status(400).send({success: false,msg:error.message});
+  }
+}
 module.exports = {
   registerLoad,
   register,
@@ -216,5 +251,7 @@ module.exports = {
   loadGroups,
   createGroup,
   getMembers,
-  addMembers
+  addMembers,
+  updateChatGroup,
+  deleteChatGroup
 };

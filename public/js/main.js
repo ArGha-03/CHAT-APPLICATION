@@ -3,12 +3,10 @@
 	"use strict";
 
 	var fullHeight = function() {
-
 		$('.js-fullheight').css('height', $(window).height());
 		$(window).resize(function(){
 			$('.js-fullheight').css('height', $(window).height());
 		});
-
 	};
 	fullHeight();
 
@@ -137,30 +135,27 @@ socket.on("loadChats", function(data) {
 	var chats = data.chats;
 	let html = "";
 	for (let x = 0; x < chats.length; x++) {
-	let addClass = "";
-	const timestamp = new Date(chats[x]["createdAt"]);
-	const options = {
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: true
-	};
-	const formattedTime = timestamp.toLocaleString("en-US", options);
-	addClass =
-		chats[x]["sender_id"] == sender_id ?
-		"current-user-chat" :
-		"distance-user-chat";
-	html +=`
-	<div class='`+addClass +`' id='`+chats[x]["_id"] +`'>
-		<h5 class="message-content"><span>`+chats[x]["message"] +`</span>`;
-	if (chats[x]["sender_id"] == sender_id) {
-		html += `
-		<i class="fa fa-trash" aria-hidden="true" data-id='` + chats[x]["_id"] + `' data-toggle="modal" data-target="#deleteChatModal" ></i>
-		<i class="fa fa-edit" aria-hidden="true" data-id='` + chats[x]["_id"] + `' data-msg='` + chats[x]['message'] + `' data-toggle="modal" data-target="#editChatModal"></i>`;
-	}
-	html +=`
-		<div class="message-timestamp-right">`+formattedTime +`</div>
-		</h5>
-	</div>`;
+		let addClass = "";
+		const timestamp = new Date(chats[x]["createdAt"]);
+		const options = {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: true
+		};
+		const formattedTime = timestamp.toLocaleString("en-US", options);
+		addClass = chats[x]["sender_id"] == sender_id ? "current-user-chat" : "distance-user-chat";
+		html +=`
+		<div class='`+addClass +`' id='`+chats[x]["_id"] +`'>
+			<h5 class="message-content"><span>`+chats[x]["message"] +`</span>`;
+		if (chats[x]["sender_id"] == sender_id) {
+			html += `
+			<i class="fa fa-trash" aria-hidden="true" data-id='` + chats[x]["_id"] + `' data-toggle="modal" data-target="#deleteChatModal" ></i>
+			<i class="fa fa-edit" aria-hidden="true" data-id='` + chats[x]["_id"] + `' data-msg='` + chats[x]['message'] + `' data-toggle="modal" data-target="#editChatModal"></i>`;
+		}
+		html +=`
+			<div class="message-timestamp-right">`+formattedTime +`</div>
+			</h5>
+		</div>`;
 	}
 	$("#chat-container").append(html);
 	scrollChat();
@@ -285,10 +280,8 @@ $('#add-member-form').submit(function(event) {
 	url: '/add-members',
 	type: 'POST',
 	data: formData,
-	success: function(res) {
-		console.log(res);
-		
-		if (res.success == true) {
+	success: function(res) {		
+		if (res.success) {
 			$('#memberModal').modal('hide');
 			$('#add-member-form')[0].reset();
 			alert(res.msg);
@@ -301,3 +294,51 @@ $('#add-member-form').submit(function(event) {
 	}
 	});
 });
+// update group script
+$('.updateMember').click(function() {
+	var obj = JSON.parse($(this).attr('data-obj'));	
+	$('#update_group_id').val(obj._id);
+	$('#last_limit').val(obj.limit);
+	$('#group_name').val(obj.name);
+	$('#group_limit').val(obj.limit);
+});
+$('#updateChatGroupForm').submit(function(e) {
+	e.preventDefault();
+	$.ajax({
+		url: '/update-chat-group',
+		type: 'POST',
+		data: new FormData(this),
+		contentType: false,
+		cache: false,
+		processData: false,
+		success: function(res) {	
+			alert(res.msg);	
+			if (res.success) {
+				location.reload();
+			}
+		}
+	});
+});
+//delete group
+$('.deleteGroup').click(function(event){
+	event.preventDefault();
+	$('#delete_group_id').val($(this).attr('data-id'))
+	$('#delete_group_name').text($(this).attr('data-name'))
+
+})
+
+$('#deleteChatGroupForm').submit(function(event){
+	event.preventDefault();
+	const formData = $(this).serialize();
+	$.ajax({
+		url: '/delete-chat-group',	
+        type: 'POST',
+        data: formData,
+        success: (res) => {
+            alert(res.msg)
+            if(res.success){
+                location.reload();
+            }
+        }
+	})
+})
