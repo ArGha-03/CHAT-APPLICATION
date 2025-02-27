@@ -27,6 +27,7 @@ var userData = JSON.parse(getCookie("user"));
 
 var sender_id = userData._id;
 var receiver_id;
+var global_group_id;
 var socket = io("/user-namespace", {
 	auth: {
 	token: userData._id
@@ -40,7 +41,7 @@ $(document).ready(function() {
 	receiver_id = userId;
 	var status = ($(this).attr("status") == 0) ? 'Offine' : 'Online';
 	let html = `
-	<div class="image"><img src="http://127.0.0.1:5000/` + ReceiverImage + `%>" alt=""></div>
+	<div class="image"><img src="http://127.0.0.1:3000/` + ReceiverImage + `%>" alt=""></div>
 	<div class="details"> <h3>` + ReceiverName + `</h3></div>`;
 	$(".content-header").html(html);
 	$(".chat-section").show();
@@ -165,16 +166,13 @@ function scrollChat() {
 	$("#chat-container").animate({
 		scrollTop: $("#chat-container").offset().top +
 		$("#chat-container")[0].scrollHeight
-	},
-	0
-	);
+	}, 0);
 }
 
 $(document).on("click", ".fa-trash", function() {
 	let msg = $(this).parent().text();
 	$("#delete-message").text(msg);
 	$("#delete-message-id").val($(this).attr("data-id"));
-	console.log("Hello world")
 });
 
 $("#delete-chat-form").submit(function(event) {
@@ -342,3 +340,245 @@ $('#deleteChatGroupForm').submit(function(event){
         }
 	})
 })
+//copy
+$('.copy').click(function(event){
+	event.preventDefault();
+
+	$(this).prepend('<span class="copied_text">Copied</span>');
+
+    var group_id = $(this).attr('data-id');
+	var url = window.location.host+ '/share-group/'+group_id;
+
+	let temp = $('<input>');
+	$('body').append(temp);
+	temp.val(url).select();
+	document.execCommand('copy');
+	temp.remove();
+	setTimeout(()=>{
+        $('.copied_text').remove();
+    },2000);
+});
+//join group
+$('.join-now').click(function(event){
+	event.preventDefault();
+	$(this).text('Joining...');
+	$(this).attr('disabled','disabled');
+
+    var group_id = $(this).attr('data-id');
+
+    $.ajax({
+		url: '/join-group',
+        type: 'POST',
+        data: {group_id: group_id},
+		success: function(res){
+			alert(res.msg);            
+			if(res.success){
+				location.reload();
+            }
+            else{
+                $(this).text('Join Now');
+                $(this).removeAttr('disabled');
+            }
+		}
+	})
+});
+/*---------------------Group Chat script*/ 
+function scrollGroupChat() {
+	$("#group-chat-container").animate({
+		scrollTop: $("#group-chat-container").offset().top +
+		$("#group-chat-container")[0].scrollHeight
+	}, 0);
+}
+
+$('.group-list').click(function(){
+	// event.preventDefault();
+    $('.group-start-head').hide();
+    $('.group-chat-section').show();
+	global_group_id = $(this).attr('data-id');
+	loadGroupChats();
+});
+$('#group-chat-form').submit((e) => {
+	e.preventDefault();
+	var message = $('#group-message').val();
+
+	// jQuery.noConflict();
+	$.ajax({
+		url: '/group-chat-save',
+		type: 'POST',
+		data: { sender_id: sender_id, group_id: global_group_id, message: message },
+		success: (response) => {
+			if (response.success) {
+				console.log(response.data);
+				
+				$('#group-message').val('');
+				let message = response.chat.message;
+				let html = `
+					<div class="current-user-chat" id='`+response.chat._id+`'>
+						<h5>
+							<span>`+message+`</span> 
+							<i class="fa fa-trash deleteGroupChat" aria-hidden="true" data-id="`+ response.chat._id +`" data-toggle="modal" data-target="#deleteGroupChatModal"></i>
+							<i class="fa fa-edit editGroupChat" aria-hidden="true" data-id="`+ response.chat._id +`" data-msg="`+ message +`" data-toggle="modal" data-target="#editGroupChatModal"></i>
+						</h5>`;
+
+					var date = new Date(response.chat.createdAt);
+					let cDate = date.getDate();
+					let cMonth = (date.getMonth()+1) > 9 ? (date.getMonth() + 1) : '0' + (date.getMonth() + 1);
+					let cYear = date.getFullYear();
+					let getFullDate = cDate + '-' + cMonth + '-' + cYear;
+					html += `
+						<div class="user-data"><b>Me </b>`+ getFullDate +`</div>
+					</div>
+				`;
+				$('#group-chat-container').append(html);
+				socket.emit('newGroupChat', response.chat);
+				scrollGroupChat();
+			}
+			else {
+				alert(data.msg);
+			}
+		}
+
+	});
+});
+socket.on('loadNewGroupChat', function(data){
+	if(global_group_id == data.group_id){
+		let html = `
+		<div class="distance-user-chat" id='`+data._id+`'>
+			<h5>
+				<span>`+data.message+`</span> 
+			</h5>`;
+
+			var date = new Date(data.createdAt);
+			let cDate = date.getDate();
+			let cMonth = (date.getMonth()+1) > 9 ? (date.getMonth() + 1) : '0' + (date.getMonth() + 1);
+			let cYear = date.getFullYear();
+			let getFullDate = cDate + '-' + cMonth + '-' + cYear;
+		html += `
+			<div class="user-data">
+				<img src="`+ data.sender_id.image+`" class="user-chat-image"/>
+				<b>`+ data.sender_id.name +`</b>
+				`+ getFullDate +`
+			</div>
+		</div>
+		`;
+		$('#group-chat-container').append(html);
+		scrollGroupChat();
+	}
+});
+function loadGroupChats(){
+	$.ajax({
+		url: '/load-group-chats',
+        type: 'POST',
+        data: { group_id: global_group_id },
+		success: (res) => {
+			if(res.success){				
+				var chats = res.chats;
+				let html = '';
+				
+				for(let i = 0; i < chats.length; i++){
+					let className = 'distance-user-chat';
+					if(chats[i]['sender_id']._id == sender_id){
+						className = 'current-user-chat';
+					}
+
+					html +=`
+					<div class='`+className+`' id='`+chats[i]['_id']+`'>
+						<h5>
+							<span>`+ chats[i]['message']+ `</span>`
+					if(chats[i]['sender_id']._id == sender_id){
+						html += `<i class="fa fa-trash deleteGroupChat" aria-hidden="true" data-id="`+ chats[i]['_id'] +`" data-toggle="modal" data-target="#deleteGroupChatModal"></i>
+						<i class="fa fa-edit editGroupChat" aria-hidden="true" data-id="`+ chats[i]['_id'] +`" data-msg="`+ chats[i]['message'] +`" data-toggle="modal" data-target="#editGroupChatModal"></i>`;
+					}
+					html +=`
+						</h5>`;
+						var date = new Date(chats[i]['createdAt']);
+						let cDate = date.getDate();
+						let cMonth = (date.getMonth()+1) > 9 ? (date.getMonth() + 1) : '0' + (date.getMonth() + 1);
+						let cYear = date.getFullYear();
+						let getFullDate = cDate + '-' + cMonth + '-' + cYear;
+						if(chats[i]['sender_id']._id == sender_id){
+							html +=`
+								<div class="user-data"><b>Me </b>`+ getFullDate +`</div>
+							`;
+						}
+						else{
+							html +=`
+								<div class="user-data">
+									<img src="`+ chats[i]['sender_id'].image+`" class="user-chat-image"/>
+									<b>`+ chats[i]['sender_id'].name +`</b>
+									`+ getFullDate +`
+								</div>
+							`;
+						}
+					html +=`
+					</div>
+					`;
+				}
+				$('#group-chat-container').html(html);
+				scrollGroupChat();
+			}
+			else{
+				alert(res.msg);
+			}
+		}
+	});
+}
+$(document).on('click', '.deleteGroupChat', function(){
+	var msg = $(this).parent().find('span').text();
+	
+	$('#delete-group-message').text(msg);	
+	$('#delete-group-message-id').val($(this).attr('data-id'));	
+});
+$('#delete-group-chat-form').submit(function(e){
+	e.preventDefault();
+	var id = $('#delete-group-message-id').val();
+	$.ajax({
+		url: "/delete-group-chat",
+		type: "POST",
+		data:{ id: id},
+		success: function(res){
+			if(res.success){
+				$('#' + id).remove();
+				$('#deleteGroupChatModal').modal('hide');
+				socket.emit('groupChatDeleted', id);
+			}
+			else{
+				alert(res.msg);
+			}
+		}
+	})
+});
+
+socket.on('groupChatMessageDeleted', function(id){
+	$('#' + id).remove();
+});
+
+// Update group chat
+$(document).on('click', '.editGroupChat', function(){	
+	$('#edit-group-message-id').val($(this).attr('data-id'));	
+	$('#update-group-message').val($(this).attr('data-msg'));	
+});
+$('#update-group-chat-form').submit(function(e){
+	e.preventDefault();
+	var id = $('#edit-group-message-id').val();	
+	var msg = $('#update-group-message').val();
+	$.ajax({
+		url: "/update-group-chat",
+		type: "POST",
+		data:{ id: id, message: msg},
+		success: function(res){
+			if(res.success){
+				$('#editGroupChatModal').modal('hide');
+				$('#' + id).find('span').text(msg);
+				$('#' + id).find('.editGroupChat').attr('data-msg', msg);
+				socket.emit('groupChatUpdated', {id:id, message: msg});
+			}
+			else{
+				alert(res.msg);
+			}
+		}
+	})
+});
+socket.on('groupChatMessageUpdated', function(data){
+	$('#' + data.id).find('span').text(data.message);
+});

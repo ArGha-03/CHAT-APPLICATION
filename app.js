@@ -51,12 +51,25 @@ usp.on('connection',async function(socket){
     //delete chats
     socket.on('chatDeleted',function(id){
         socket.broadcast.emit('chatMessageDeleted',id);
-    })
+    });
     
     //update chats
     socket.on('chatUpdated',function(data){
         socket.broadcast.emit('chatMessageUpdated',data);
-    })
+    });
+
+    //new group chat
+    socket.on('newGroupChat',function(data){
+        socket.broadcast.emit('loadNewGroupChat',data); // broadcast group chat object
+    });
+    
+    socket.on('groupChatDeleted',function(id){
+        socket.broadcast.emit('groupChatMessageDeleted', id); // broadcast  chat deleted id
+    });
+
+    socket.on('groupChatUpdated',function(data){        
+        socket.broadcast.emit('groupChatMessageUpdated',data);
+    });
 });
 
 http.listen(3000, function() {
